@@ -1,20 +1,14 @@
 package org.example.price_comparator.service;
 
 import lombok.RequiredArgsConstructor;
-import org.example.price_comparator.model.Discount;
-import org.example.price_comparator.model.Product;
-import org.example.price_comparator.model.Store;
-import org.example.price_comparator.model.StoreProduct;
+import org.example.price_comparator.model.*;
 import org.example.price_comparator.repository.ProductRepository;
 import org.example.price_comparator.repository.StoreProductRepository;
 import org.example.price_comparator.utils.Notification;
 import org.springframework.data.util.Pair;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -22,7 +16,7 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final StoreProductRepository storeProductRepository;
-
+    //i believe it is more helpful to find the best overall price, not the biggest discount.
     private StoreProduct findBestDiscount(Product product) {
         List<Product> products;
         List<StoreProduct> storeProducts = storeProductRepository.findAllByProduct(product);
@@ -44,16 +38,64 @@ public class ProductService {
         }
         return bestDiscount;
     }
-
-    public Notification<List<Map.Entry<Product,Store>>> bestProductPrice(List<Product> products){
-        List<Map.Entry<Product,Store>> optimisedProducts = new ArrayList<>();
+    //considered that a user wants to check the best price for some items. i don't think they need to see all the existing items
+    public Notification<List<BasketDTO>> bestDiscounts(List<Product> products){
+        List<BasketDTO> optimisedProducts = new ArrayList<>();
         for(Product product : products) {
             StoreProduct bestDeal = findBestDiscount(product);
-            optimisedProducts.add(Map.entry(bestDeal.getProduct(), bestDeal.getStore()));
+            BasketDTO basketDTO = new BasketDTO();
+            basketDTO.setProduct(product.getName());
+            basketDTO.setStore(bestDeal.getStore().getName());
+            if(bestDeal.hasActiveDiscount())basketDTO.setDiscount(basketDTO.getDiscount());
+            basketDTO.setBasePrice(bestDeal.getPrice());
+            optimisedProducts.add(basketDTO);
         }
-        Notification<List<Map.Entry<Product,Store>>> notification = new Notification<>();
+        Notification<List<BasketDTO>> notification = new Notification<>();
         notification.setResult(optimisedProducts);
-        notification.setSuccessMessage("Basket Optimisation");
+        notification.setSuccessMessage("Best price for given items");
+        return notification;
+    }
+
+    public Notification<Map<String,List<BasketDTO>>> optimiseBasket(List<Product> products){
+        Map<String,List<BasketDTO>> optimisedProducts = new HashMap<>();
+        for(Product product : products) {
+            StoreProduct bestDeal = findBestDiscount(product);
+            BasketDTO basketDTO = new BasketDTO();
+            basketDTO.setProduct(product.getName());
+            basketDTO.setStore(bestDeal.getStore().getName());
+            basketDTO.setBasePrice(bestDeal.getPrice());
+            basketDTO.setDiscount(basketDTO.getDiscount());
+            //
+            optimisedProducts.get(basketDTO.getStore()).add(basketDTO);
+        }
+        Notification<Map<String,List<BasketDTO>>> notification = new Notification<>();
+        notification.setResult(optimisedProducts);
+        notification.setSuccessMessage("Optimised basket");
+        return notification;
+    }
+
+    public Notification<List<BasketDTO>> newDiscounts(){
+        Notification<List<BasketDTO>> notification = new Notification<>();
+
+        List<StoreProduct> storeProducts = storeProductRepository.findAll();
+        List<BasketDTO> newlyDiscounted = new ArrayList<>();
+        Date now = new Date();
+        for (StoreProduct sp: storeProducts) {
+            if(sp.hasActiveDiscount()) {
+                BasketDTO basketDTO = new BasketDTO();
+                Date ago24 = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+                if(sp.getCurrentDiscount().get().getFrom_date().after(ago24)) {
+                basketDTO.setDiscount(sp.getCurrentDiscount().get().getPercentage_of_discount());
+                basketDTO.setBasePrice(sp.getPrice());
+                basketDTO.setStore(sp.getStore().getName());
+                basketDTO.setProduct(sp.getProduct().getName());
+                newlyDiscounted.add(basketDTO);
+                }
+            }
+
+        }
+        notification.setResult(newlyDiscounted);
+        notification.setSuccessMessage("Newly discounted");
         return notification;
     }
 }

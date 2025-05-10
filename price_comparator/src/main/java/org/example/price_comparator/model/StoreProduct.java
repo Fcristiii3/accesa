@@ -20,6 +20,7 @@ public class StoreProduct {
     @GeneratedValue(strategy = GenerationType.AUTO)
     private int id;
     private float price;
+    //each store can have their own price -> the best price of a product will be price*discount
     private String currency;
 
     @ManyToOne
@@ -40,6 +41,10 @@ public class StoreProduct {
             if(now.before(discount.getTo_date()) && now.after(discount.getFrom_date()))return Optional.of(discount);
         }
         return Optional.empty();
+    }
+    public boolean hasActiveDiscount() {
+        if(getCurrentDiscount().isPresent())return true;
+        return false;
     }
 
 
