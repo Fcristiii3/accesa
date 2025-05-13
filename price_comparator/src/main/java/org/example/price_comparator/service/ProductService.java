@@ -98,4 +98,24 @@ public class ProductService {
         notification.setSuccessMessage("Newly discounted");
         return notification;
     }
+    public Notification<StoreProductDTO> dynamicHistory(Product product){
+        Notification<StoreProductDTO> notification = new Notification<>();
+        StoreProductDTO foundProduct = new StoreProductDTO();
+        StoreProduct storeProduct = new StoreProduct();
+        try{
+            storeProduct = storeProductRepository.findByProduct(product);
+            foundProduct.setProductName(storeProduct.getProduct().getName());
+            foundProduct.setDiscounts(storeProduct.getDiscounts());
+            foundProduct.setCurrency(storeProduct.getCurrency());
+            notification.setResult(foundProduct);
+            notification.setSuccessMessage("Dynamic history");
+        }
+        catch(Exception e){
+            notification.setResult(null);
+            notification.addError(e.getMessage());
+        }
+        return notification;
+    }
+    //make a user class, and add to it a list of their alerts. then call the check every day and send a mail to the associated mail.
+    //public void check
 }
