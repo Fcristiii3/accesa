@@ -47,6 +47,14 @@ public class StoreProduct {
         return false;
     }
 
+    public float getPrice(){
+        Optional<Discount> discount = getCurrentDiscount();
+        if(discount.isPresent()) {
+            return price * discount.get().getPercentage_of_discount();
+        }
+        else return price;
+    }
+
 
 }
 

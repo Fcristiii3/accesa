@@ -2,10 +2,12 @@ package org.example.price_comparator.service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.price_comparator.model.*;
+import org.example.price_comparator.repository.AlertRepository;
 import org.example.price_comparator.repository.ProductRepository;
 import org.example.price_comparator.repository.StoreProductRepository;
 import org.example.price_comparator.utils.Notification;
 import org.springframework.data.util.Pair;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -14,8 +16,9 @@ import java.util.*;
 @RequiredArgsConstructor
 public class ProductService {
 
-    private final ProductRepository productRepository;
     private final StoreProductRepository storeProductRepository;
+    private final AlertRepository alertRepository;
+    private final SmtpService smtpService;
     //i believe it is more helpful to find the best overall price, not the biggest discount.
     private StoreProduct findBestDiscount(Product product) {
         List<Product> products;
@@ -26,18 +29,15 @@ public class ProductService {
             float price = sp.getPrice();
             Optional<Discount> discount = sp.getCurrentDiscount();
             if(discount.isPresent()) {
-            if(price*discount.get().getPercentage_of_discount()<minPrice){
-                minPrice = price*discount.get().getPercentage_of_discount();
+            if(price<minPrice){
+                minPrice = price;
                 bestDiscount=sp;
             }
-            }
-            else if(price<minPrice){
-                minPrice = price;
-                bestDiscount = sp;
             }
         }
         return bestDiscount;
     }
+
     //considered that a user wants to check the best price for some items. i don't think they need to see all the existing items
     public Notification<List<BasketDTO>> bestDiscounts(List<Product> products){
         List<BasketDTO> optimisedProducts = new ArrayList<>();
@@ -98,6 +98,7 @@ public class ProductService {
         notification.setSuccessMessage("Newly discounted");
         return notification;
     }
+
     public Notification<StoreProductDTO> dynamicHistory(Product product){
         Notification<StoreProductDTO> notification = new Notification<>();
         StoreProductDTO foundProduct = new StoreProductDTO();
@@ -116,6 +117,47 @@ public class ProductService {
         }
         return notification;
     }
-    //make a user class, and add to it a list of their alerts. then call the check every day and send a mail to the associated mail.
-    //public void check
+
+    public Notification<AlertDTO> setAlert(String email, Product product, float targetPrice){
+    Notification<AlertDTO> notification = new Notification<>();
+
+    AlertDTO alertDTO = new AlertDTO();
+    Alert alert = new Alert();
+    alert.setEmail(email);
+    alert.setProduct(product);
+    alert.setTargetPrice(targetPrice);
+    try{
+        alertRepository.save(alert);
+    }
+    catch(Exception e){
+        notification.setResult(null);
+        notification.addError(e.getMessage());
+    }
+    alertDTO.setEmail(email);
+    notification.setResult(alertDTO);
+    notification.setSuccessMessage("Alert set");
+    return notification;
+    }
+
+    @Scheduled(fixedRate = 36000000)
+    public void checkAlerts(){
+        List<Alert> alerts = alertRepository.findAll();
+        Optional<StoreProduct> product;
+        for(Alert alert : alerts){
+            try {
+                product = Optional.ofNullable(storeProductRepository.findByProduct(alert.getProduct()));
+                if(product.isPresent()){
+                    if(alert.getTargetPrice()<product.get().getPrice()){
+                        smtpService.sendAlert(alert.getEmail(),product.get().getProduct().getName(),product.get().getPrice(),product.get().getStore().getName());
+                    }
+                }
+            }
+            catch (Exception e) {
+                System.out.println(e);
+            }
+
+        }
+
+    }
+
 }
