@@ -15,7 +15,7 @@ import lombok.Setter;
 @Getter
 public class Alert {
     @Id
-    private Long id;
+    private String id;
     private String email;
     @ManyToOne
     private Product product;

@@ -1,9 +1,6 @@
 package org.example.price_comparator.model;
 
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
 import java.util.List;
 
@@ -13,7 +10,8 @@ import java.util.List;
 @Getter
 public class StoreProductDTO {
     private String productName;
-    private int price;
+    private float price;
     private String currency;
     private List<Discount> discounts;
+    private String storeName;
 }

@@ -55,6 +55,10 @@ public class StoreProduct {
         else return price;
     }
 
+    public float getPricePerKGorL(){
+        return getPrice()/product.getPackageQuantityNormalised();
+    }
+
 
 }
 

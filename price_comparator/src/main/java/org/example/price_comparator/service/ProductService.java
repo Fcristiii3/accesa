@@ -6,16 +6,16 @@ import org.example.price_comparator.repository.AlertRepository;
 import org.example.price_comparator.repository.ProductRepository;
 import org.example.price_comparator.repository.StoreProductRepository;
 import org.example.price_comparator.utils.Notification;
-import org.springframework.data.util.Pair;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
-
+///find a way to communicate between frontend and backend the products
 @Service
 @RequiredArgsConstructor
 public class ProductService {
 
+    private final ProductRepository productRepository;
     private final StoreProductRepository storeProductRepository;
     private final AlertRepository alertRepository;
     private final SmtpService smtpService;
@@ -23,26 +23,39 @@ public class ProductService {
     private StoreProduct findBestDiscount(Product product) {
         List<Product> products;
         List<StoreProduct> storeProducts = storeProductRepository.findAllByProduct(product);
+        for (StoreProduct storeProduct : storeProducts) {
+            //System.out.println(storeProduct.getId()+" "+storeProduct.getCurrency()+" "+storeProduct.getPrice()+" "+storeProduct.getProduct().getProductId()+" "+storeProduct.getStore().getStoreId());
+        }
         float minPrice = Float.MAX_VALUE;
         StoreProduct bestDiscount = null;
         for (StoreProduct sp : storeProducts) {
             float price = sp.getPrice();
-            Optional<Discount> discount = sp.getCurrentDiscount();
-            if(discount.isPresent()) {
             if(price<minPrice){
                 minPrice = price;
                 bestDiscount=sp;
             }
-            }
+
         }
         return bestDiscount;
     }
 
     //considered that a user wants to check the best price for some items. i don't think they need to see all the existing items
-    public Notification<List<BasketDTO>> bestDiscounts(List<Product> products){
+    public Notification<List<BasketDTO>> bestDiscounts(List<String> products){
         List<BasketDTO> optimisedProducts = new ArrayList<>();
-        for(Product product : products) {
+        List<Product> actualProduct = new ArrayList<>();
+        for (String product : products) {
+            try {
+                Optional<Product> maybeProduct = Optional.ofNullable(productRepository.findByName(String.valueOf(product)));
+                maybeProduct.ifPresent(actualProduct::add);
+            }
+            catch (Exception e){
+                System.out.println(e.getMessage());
+            }
+        }
+        for(Product product : actualProduct) {
             StoreProduct bestDeal = findBestDiscount(product);
+
+            System.out.println(bestDeal);
             BasketDTO basketDTO = new BasketDTO();
             basketDTO.setProduct(product.getName());
             basketDTO.setStore(bestDeal.getStore().getName());
@@ -158,6 +171,34 @@ public class ProductService {
 
         }
 
+    }
+
+    public Notification<List<StoreProductDTO>> findSubstitutes(int product){
+        Optional<Product> actualProduct;
+        Notification<List<StoreProductDTO>> notification = new Notification<>();
+        try{
+            actualProduct = productRepository.findById(String.valueOf(product));
+        }
+        catch(Exception e){
+            notification.setResult(null);
+            notification.addError(e.getMessage());
+            return notification;
+        }
+        List<StoreProduct> substitutes = storeProductRepository.findAllByProduct_Category(actualProduct.get().getCategory());
+        List<StoreProductDTO> subs = substitutes.stream()
+                .sorted(Comparator.comparing(StoreProduct::getPricePerKGorL))
+                .map(sp -> new StoreProductDTO(
+                        sp.getProduct().getName(),
+                        sp.getPrice(),
+                        sp.getCurrency(),
+                        sp.getDiscounts(),
+                        sp.getStore().getName()
+                ))
+                .toList();
+
+        notification.setResult(subs);
+        notification.setSuccessMessage("Substitutes");
+        return notification;
     }
 
 }
