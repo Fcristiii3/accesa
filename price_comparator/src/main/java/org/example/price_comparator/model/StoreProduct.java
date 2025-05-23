@@ -38,7 +38,9 @@ public class StoreProduct {
     public Optional<Discount> getCurrentDiscount() {
         Date now = new Date();
         for (Discount discount : discounts) {
-            if(now.before(discount.getTo_date()) && now.after(discount.getFrom_date()))return Optional.of(discount);
+            if(now.before(discount.getTo_date()) && now.after(discount.getFrom_date())){
+                return Optional.of(discount);
+            }
         }
         return Optional.empty();
     }

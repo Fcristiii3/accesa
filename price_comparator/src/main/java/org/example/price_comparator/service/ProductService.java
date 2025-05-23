@@ -68,7 +68,7 @@ public class ProductService {
             basketDTO.setProduct(String.valueOf(product.getProductId()));
             //basketDTO.setProductName(product.getName());
             basketDTO.setStore(bestDeal.getStore().getName());
-            if(bestDeal.hasActiveDiscount())basketDTO.setDiscount(basketDTO.getDiscount());
+            if(bestDeal.hasActiveDiscount())basketDTO.setDiscount(bestDeal.getCurrentDiscount().get().getPercentage_of_discount());
             basketDTO.setBasePrice(bestDeal.getPrice());
             optimisedProducts.add(basketDTO);
         }
