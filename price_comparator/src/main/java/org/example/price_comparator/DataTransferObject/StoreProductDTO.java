@@ -1,6 +1,7 @@
-package org.example.price_comparator.model;
+package org.example.price_comparator.DataTransferObject;
 
 import lombok.*;
+import org.example.price_comparator.model.Discount;
 
 import java.util.List;
 
@@ -12,6 +13,6 @@ public class StoreProductDTO {
     private String productID;
     private float price;
     private String currency;
-    private List<Discount> discounts;
+    private List<DiscountDTO> discounts;
     private String storeName;
 }

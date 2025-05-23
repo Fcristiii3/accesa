@@ -1,4 +1,4 @@
-package org.example.price_comparator.model;
+package org.example.price_comparator.DataTransferObject;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;

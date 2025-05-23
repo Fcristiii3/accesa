@@ -1,18 +1,22 @@
 package org.example.price_comparator.service;
 
 import lombok.RequiredArgsConstructor;
+import org.example.price_comparator.DataTransferObject.AlertDTO;
+import org.example.price_comparator.DataTransferObject.BasketDTO;
+import org.example.price_comparator.DataTransferObject.DiscountDTO;
+import org.example.price_comparator.DataTransferObject.StoreProductDTO;
 import org.example.price_comparator.model.*;
 import org.example.price_comparator.repository.AlertRepository;
 import org.example.price_comparator.repository.ProductRepository;
 import org.example.price_comparator.repository.StoreProductRepository;
 import org.example.price_comparator.repository.StoreRepository;
 import org.example.price_comparator.utils.Notification;
-import org.hibernate.event.spi.SaveOrUpdateEvent;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import javax.swing.text.html.Option;
 import java.util.*;
+import java.util.stream.Collectors;
+
 ///find a way to communicate between frontend and backend the products
 @Service
 @RequiredArgsConstructor
@@ -140,7 +144,7 @@ public class ProductService {
         return notification;
     }
 
-    public Notification<StoreProductDTO> dynamicHistory(String productID,String shopID){
+    public Notification<StoreProductDTO> dynamicHistory(String productID, String shopID){
         Notification<StoreProductDTO> notification = new Notification<>();
         StoreProductDTO foundProduct = new StoreProductDTO();
         StoreProduct storeProduct;
@@ -156,9 +160,21 @@ public class ProductService {
             return notification;
         }
         try{
+            List<DiscountDTO> discountDTO = new ArrayList<>();
+
             storeProduct = storeProductRepository.findByProductAndStore(maybeProduct.get(),maybeshop.get());
             foundProduct.setProductID(String.valueOf(storeProduct.getProduct().getProductId()));
-            foundProduct.setDiscounts(storeProduct.getDiscounts());
+            List<Discount> discounts = storeProduct.getDiscounts();
+
+            for(Discount discount: discounts){
+                DiscountDTO ddto =new DiscountDTO();
+                ddto.setTo_date(discount.getTo_date());
+                ddto.setFrom_date(discount.getFrom_date());
+                ddto.setPercentage_of_discount(discount.getPercentage_of_discount());
+                discountDTO.add(ddto);
+            }
+
+            foundProduct.setDiscounts(discountDTO);
             foundProduct.setCurrency(storeProduct.getCurrency());
             foundProduct.setPrice(storeProduct.getPrice());
             foundProduct.setStoreName(storeProduct.getStore().getName());
@@ -167,7 +183,7 @@ public class ProductService {
         }
         catch(Exception e){
             notification.setResult(null);
-            notification.addError(e.getMessage());
+            notification.addError("Couldn't find");
         }
         return notification;
     }
@@ -189,13 +205,18 @@ public class ProductService {
     alert.setProduct(maybeProduct.get());
     alert.setTargetPrice(targetPrice);
     try{
+        System.out.println(alert.getTargetPrice());
         alertRepository.save(alert);
+
     }
     catch(Exception e){
         notification.setResult(null);
         notification.addError(e.getMessage());
+        return notification;
     }
     alertDTO.setEmail(email);
+    alertDTO.setProduct(alert.getProduct().getProductId());
+    alertDTO.setTargetPrice(alert.getTargetPrice());
     notification.setResult(alertDTO);
     notification.setSuccessMessage("Alert set");
     return notification;
@@ -234,15 +255,23 @@ public class ProductService {
             return notification;
         }
         List<StoreProduct> substitutes = storeProductRepository.findAllByProduct_Category(actualProduct.get().getCategory());
+        String firstWord = actualProduct.get().getName().split(" ")[0].toLowerCase();
         List<StoreProductDTO> subs = substitutes.stream()
                 .sorted(Comparator.comparing(StoreProduct::getPricePerKGorL))
+                .filter(sp ->{
+                    String secondProduct = sp.getProduct().getName().split(" ")[0].toLowerCase();
+                    return firstWord.equals(secondProduct);
+                })
                 .map(sp -> new StoreProductDTO(
                         sp.getProduct().getName(),
                         sp.getPrice(),
                         sp.getCurrency(),
-                        sp.getDiscounts(),
+                        sp.getDiscounts().stream()
+                                        .map(discount -> new DiscountDTO(discount.getFrom_date(),discount.getTo_date(), discount.getPercentage_of_discount()))
+                                                .collect(Collectors.toList()),
                         sp.getStore().getName()
                 ))
+
                 .toList();
 
         notification.setResult(subs);
