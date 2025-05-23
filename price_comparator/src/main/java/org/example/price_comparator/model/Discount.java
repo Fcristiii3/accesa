@@ -24,4 +24,6 @@ public class Discount {
     @ManyToOne
     @JoinColumn(name = "store_product_id")
     private StoreProduct storeProduct;
+
+
 }

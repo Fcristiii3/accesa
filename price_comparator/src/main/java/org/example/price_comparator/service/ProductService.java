@@ -5,10 +5,13 @@ import org.example.price_comparator.model.*;
 import org.example.price_comparator.repository.AlertRepository;
 import org.example.price_comparator.repository.ProductRepository;
 import org.example.price_comparator.repository.StoreProductRepository;
+import org.example.price_comparator.repository.StoreRepository;
 import org.example.price_comparator.utils.Notification;
+import org.hibernate.event.spi.SaveOrUpdateEvent;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import javax.swing.text.html.Option;
 import java.util.*;
 ///find a way to communicate between frontend and backend the products
 @Service
@@ -19,6 +22,7 @@ public class ProductService {
     private final StoreProductRepository storeProductRepository;
     private final AlertRepository alertRepository;
     private final SmtpService smtpService;
+    private final StoreRepository storeRepository;
     //i believe it is more helpful to find the best overall price, not the biggest discount.
     private StoreProduct findBestDiscount(Product product) {
         List<Product> products;
@@ -45,7 +49,7 @@ public class ProductService {
         List<Product> actualProduct = new ArrayList<>();
         for (String product : products) {
             try {
-                Optional<Product> maybeProduct = Optional.ofNullable(productRepository.findByName(String.valueOf(product)));
+                Optional<Product> maybeProduct = productRepository.findById(product);
                 maybeProduct.ifPresent(actualProduct::add);
             }
             catch (Exception e){
@@ -57,7 +61,8 @@ public class ProductService {
 
             System.out.println(bestDeal);
             BasketDTO basketDTO = new BasketDTO();
-            basketDTO.setProduct(product.getName());
+            basketDTO.setProduct(String.valueOf(product.getProductId()));
+            //basketDTO.setProductName(product.getName());
             basketDTO.setStore(bestDeal.getStore().getName());
             if(bestDeal.hasActiveDiscount())basketDTO.setDiscount(basketDTO.getDiscount());
             basketDTO.setBasePrice(bestDeal.getPrice());
@@ -69,19 +74,41 @@ public class ProductService {
         return notification;
     }
 
-    public Notification<Map<String,List<BasketDTO>>> optimiseBasket(List<Product> products){
+    public Notification<Map<String,List<BasketDTO>>> optimiseBasket(List<String> productIDs){
         Map<String,List<BasketDTO>> optimisedProducts = new HashMap<>();
+        List<Product> products = new ArrayList<>();
+        Notification<Map<String,List<BasketDTO>>> notification = new Notification<>();
+        for(String productID : productIDs){
+            try{
+                Optional<Product> maybeProduct = productRepository.findById(productID);
+                maybeProduct.ifPresent(products::add);
+            }
+            catch (Exception e){
+                notification.addError("Couldn't find product " + productID);
+            }
+        }
         for(Product product : products) {
             StoreProduct bestDeal = findBestDiscount(product);
             BasketDTO basketDTO = new BasketDTO();
-            basketDTO.setProduct(product.getName());
+            basketDTO.setProduct(String.valueOf(product.getProductId()));
+            //basketDTO.setProductName(product.getName());
             basketDTO.setStore(bestDeal.getStore().getName());
             basketDTO.setBasePrice(bestDeal.getPrice());
             basketDTO.setDiscount(basketDTO.getDiscount());
-            //
-            optimisedProducts.get(basketDTO.getStore()).add(basketDTO);
+            System.out.println(basketDTO.getProduct());
+            System.out.println(basketDTO.getStore());
+
+            List<BasketDTO> existingBasket = optimisedProducts.get(basketDTO.getStore());
+            if(existingBasket==null){
+                existingBasket = new ArrayList<>();
+                existingBasket.add(basketDTO);
+            }
+            else{
+                existingBasket.add(basketDTO);
+            }
+            optimisedProducts.put(basketDTO.getStore(), existingBasket);
         }
-        Notification<Map<String,List<BasketDTO>>> notification = new Notification<>();
+
         notification.setResult(optimisedProducts);
         notification.setSuccessMessage("Optimised basket");
         return notification;
@@ -101,7 +128,8 @@ public class ProductService {
                 basketDTO.setDiscount(sp.getCurrentDiscount().get().getPercentage_of_discount());
                 basketDTO.setBasePrice(sp.getPrice());
                 basketDTO.setStore(sp.getStore().getName());
-                basketDTO.setProduct(sp.getProduct().getName());
+                basketDTO.setProduct(String.valueOf(sp.getProduct().getProductId()));
+                //basketDTO.setProductName(sp.getProduct().getName());
                 newlyDiscounted.add(basketDTO);
                 }
             }
@@ -112,15 +140,28 @@ public class ProductService {
         return notification;
     }
 
-    public Notification<StoreProductDTO> dynamicHistory(Product product){
+    public Notification<StoreProductDTO> dynamicHistory(String productID,String shopID){
         Notification<StoreProductDTO> notification = new Notification<>();
         StoreProductDTO foundProduct = new StoreProductDTO();
-        StoreProduct storeProduct = new StoreProduct();
+        StoreProduct storeProduct;
+        Optional<Product> maybeProduct;
+        Optional<Store> maybeshop;
         try{
-            storeProduct = storeProductRepository.findByProduct(product);
-            foundProduct.setProductName(storeProduct.getProduct().getName());
+            maybeProduct = productRepository.findById(productID);
+            maybeshop = storeRepository.findById(shopID);
+        }
+        catch (Exception e){
+            notification.addError("Shop or product is invalid");
+            notification.setResult(null);
+            return notification;
+        }
+        try{
+            storeProduct = storeProductRepository.findByProductAndStore(maybeProduct.get(),maybeshop.get());
+            foundProduct.setProductID(String.valueOf(storeProduct.getProduct().getProductId()));
             foundProduct.setDiscounts(storeProduct.getDiscounts());
             foundProduct.setCurrency(storeProduct.getCurrency());
+            foundProduct.setPrice(storeProduct.getPrice());
+            foundProduct.setStoreName(storeProduct.getStore().getName());
             notification.setResult(foundProduct);
             notification.setSuccessMessage("Dynamic history");
         }
@@ -131,13 +172,21 @@ public class ProductService {
         return notification;
     }
 
-    public Notification<AlertDTO> setAlert(String email, Product product, float targetPrice){
+    public Notification<AlertDTO> setAlert(String email, String productID, float targetPrice){
     Notification<AlertDTO> notification = new Notification<>();
-
+    Optional<Product> maybeProduct;
+    try{
+    maybeProduct = productRepository.findById(productID);
+    }
+    catch (Exception e){
+        notification.addError("Couldn't find product " + productID);
+        notification.setResult(null);
+        return notification;
+    }
     AlertDTO alertDTO = new AlertDTO();
     Alert alert = new Alert();
     alert.setEmail(email);
-    alert.setProduct(product);
+    alert.setProduct(maybeProduct.get());
     alert.setTargetPrice(targetPrice);
     try{
         alertRepository.save(alert);
@@ -173,11 +222,11 @@ public class ProductService {
 
     }
 
-    public Notification<List<StoreProductDTO>> findSubstitutes(int product){
+    public Notification<List<StoreProductDTO>> findSubstitutes(String product){
         Optional<Product> actualProduct;
         Notification<List<StoreProductDTO>> notification = new Notification<>();
         try{
-            actualProduct = productRepository.findById(String.valueOf(product));
+            actualProduct = productRepository.findById(product);
         }
         catch(Exception e){
             notification.setResult(null);

@@ -9,7 +9,7 @@ import java.util.List;
 @Setter
 @Getter
 public class StoreProductDTO {
-    private String productName;
+    private String productID;
     private float price;
     private String currency;
     private List<Discount> discounts;

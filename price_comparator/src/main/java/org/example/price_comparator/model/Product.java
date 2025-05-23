@@ -18,7 +18,7 @@ public class Product {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private int productId;
-
+    private String csvID;
     private String name;
     private String category;
     private String brand;

@@ -50,7 +50,7 @@ public class StoreProduct {
     public float getPrice(){
         Optional<Discount> discount = getCurrentDiscount();
         if(discount.isPresent()) {
-            return price * discount.get().getPercentage_of_discount();
+            return price - price * discount.get().getPercentage_of_discount()/100f;
         }
         else return price;
     }

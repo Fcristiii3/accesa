@@ -64,7 +64,11 @@ public class CSVImporter implements CommandLineRunner {
             String[] line;
             reader.readNext();
             while ((line = reader.readNext()) != null) {
-                Product product = productRepository.findById(line[0]).orElse(new Product());
+                Product product = productRepository.findBycsvID(line[0]);
+                if (product == null) {
+                    product = new Product();
+                }
+                product.setCsvID(line[0]);
                 product.setName(line[1]);
                 product.setCategory(line[2]);
                 product.setBrand(line[3]);
@@ -101,8 +105,7 @@ public class CSVImporter implements CommandLineRunner {
         if (discountsFile.exists()) {
             reader.readNext();
             while ((line2 = reader2.readNext()) != null) {
-                    Product product = productRepository.findById(line2[0]).orElse(null);
-                    //System.out.println(storeName+" "+line2[0]);
+                    Product product = productRepository.findBycsvID(line2[0]);
                     if (product == null) continue;
 
                     Optional<StoreProduct> spOpt = Optional.ofNullable(storeProductRepository.findByProductAndStore(product, store));

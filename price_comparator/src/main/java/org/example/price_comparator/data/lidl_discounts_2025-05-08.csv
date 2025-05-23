@@ -1,5 +1,5 @@
 product_id;product_name;brand;package_quantity;package_unit;product_category;from_date;to_date;percentage_of_discount
-P001;lapte zuzu;Zuzu;1;l;lactate;2025-05-01;2025-05-07;10
+P001;lapte zuzu;Zuzu;1;l;lactate;2025-05-23;2025-05-25;10
 P008;brânză telemea;Pilos;0.3;kg;lactate;2025-05-01;2025-05-07;15
 P020;spaghetti nr.5;Barilla;500;g;paste făinoase;2025-05-03;2025-05-09;20
 P034;cafea măcinată;Davidoff;0.25;kg;cafea;2025-05-04;2025-05-10;12

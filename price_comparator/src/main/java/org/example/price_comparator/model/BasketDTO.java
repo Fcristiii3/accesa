@@ -11,8 +11,9 @@ import lombok.Setter;
 @AllArgsConstructor
 public class BasketDTO{
 
-    private String product;
-    private String store;
+    private String product; // id
+    //private String productName;
+    private String store; //store id would be more suitable, but we have only one instance of each market
     float basePrice;
     float discount;
 

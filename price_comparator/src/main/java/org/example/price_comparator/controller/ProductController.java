@@ -25,13 +25,13 @@ public class ProductController {
     private final ProductService productService;
 
     @PostMapping("/bestPrice")
-    public ResponseEntity<Notification<List<BasketDTO>>> bestPrice(@RequestBody List<String> productNames) {
-        Notification<List<BasketDTO>> result = productService.bestDiscounts(productNames);
+    public ResponseEntity<Notification<List<BasketDTO>>> bestPrice(@RequestBody List<String> productIDs) {
+        Notification<List<BasketDTO>> result = productService.bestDiscounts(productIDs);
         return ResponseEntity.ok(result);
     }
     @PostMapping("/optimiseBasket")
-    public ResponseEntity<Notification<Map<String,List<BasketDTO>>>> optimiseBasket(@RequestBody List<Product> products) {
-        Notification<Map<String, List<BasketDTO>>> result = productService.optimiseBasket(products);
+    public ResponseEntity<Notification<Map<String,List<BasketDTO>>>> optimiseBasket(@RequestBody List<String> productIDs) {
+        Notification<Map<String, List<BasketDTO>>> result = productService.optimiseBasket(productIDs);
         return ResponseEntity.ok(result);
     }
     @GetMapping("/newDiscounts")
@@ -40,25 +40,23 @@ public class ProductController {
         return ResponseEntity.ok(result);
     }
     @GetMapping("/getPriceHistory")
-    public ResponseEntity<Notification<StoreProductDTO>> getPriceHistory(@RequestParam int productId) {
-        Notification<StoreProductDTO> result = productService.dynamicHistory(productId);
+    public ResponseEntity<Notification<StoreProductDTO>> getPriceHistory(@RequestParam String productId, @RequestParam String shopId) {
+        Notification<StoreProductDTO> result = productService.dynamicHistory(productId,shopId);
         return ResponseEntity.ok(result);
     }
     //create op for alerts. the checking is made automatically
     @PostMapping("/setAlert")
     public ResponseEntity<Notification<AlertDTO>> setAlert(
             @RequestParam String email,
-            @RequestParam int productId,
+            @RequestParam String productId,
             @RequestParam float targetPrice
     ) {
-        Product product = new Product();
-        product.setProductId(String.valueOf(productId));
-        Notification<AlertDTO> result = productService.setAlert(email, product, targetPrice);
+        Notification<AlertDTO> result = productService.setAlert(email, productId, targetPrice);
         return ResponseEntity.ok(result);
     }
 
     @PostMapping("/findSubstitutes")
-    public ResponseEntity<Notification<List<StoreProductDTO>>> findSubstitutes(@RequestParam int productID){
+    public ResponseEntity<Notification<List<StoreProductDTO>>> findSubstitutes(@RequestParam String productID){
         Notification<List<StoreProductDTO>> result = productService.findSubstitutes(productID);
         return ResponseEntity.ok(result);
     }
